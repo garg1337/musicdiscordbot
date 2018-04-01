@@ -1,5 +1,6 @@
 import * as Discord from 'discord.js';
 import * as Scry from 'scryfall-sdk';
+const ytdl = require('ytdl-core');
 const Config = require('./config.json');
 
 // instantiate client
@@ -11,54 +12,66 @@ client.on('ready', () => {
     console.log('I am reddy');
 });
 
-client.on('message', msg => {
-    let cards: string[] = getCards(msg.content);
-    if(cards && cards.length !== 0) {
-        let cardsPromise = getResponsesForCards(cards);
-        cardsPromise
-        .then(cardResponses => {
-            let responseMessage = '\n';
-            cardResponses.forEach(cardResponse => {
-                responseMessage = responseMessage + cardResponse.name + ': ' + cardResponse.image_uris.normal + '\n';
-            });
+let connection: Discord.VoiceConnection;
+let dispatcher: Discord.StreamDispatcher;
 
-            msg.reply(responseMessage);
-        })
-        .catch(error => {
-            msg.reply('No cards found =(');
-        });
-    };
+client.on('message', async message => {
+    if (message.content.indexOf('akornz ') !== 0) {
+        return;
+    }
+
+    let pieces = message.content.split(' ');
+
+    if (pieces.length < 2) {
+        return;
+    }
+
+    let command = pieces[1];
+
+    if (command === 'play') {
+
+        if (pieces.length !== 3) {
+            message.reply('No track provided!');
+            return;
+        }
+
+        if (dispatcher) {
+            dispatcher.end();
+        }
+
+        // Only try to join the sender's voice channel if they are in one themselves
+        if (message.member.voiceChannel) {
+            connection = await message.member.voiceChannel.join();
+            let track = pieces[2];
+            dispatcher = connection.playStream(ytdl(track, {filter: 'audioonly' }));
+        } else {
+            message.reply('You need to join a voice channel first!');
+        }
+    }
+
+    if (command === 'pause') {
+        if (dispatcher) {
+            console.log('pausing');
+            dispatcher.pause();
+        }
+    }
+
+    if (command === 'stop') {
+        if (dispatcher) {
+            dispatcher.end();
+        }
+    }
+
+    if (command === 'resume') {
+        if (dispatcher) {
+            dispatcher.resume();
+        }
+    }
+
+    if (command === 'logoff') {
+        message.reply('Bye!');
+        client.destroy();
+    }
 });
 
 client.login(Config.token);
-
-function getResponsesForCards(cards: string[]): Promise<Scry.Card[]> {
-    let responses: Promise<Scry.Card>[] = [];
-    cards.forEach(card => {
-        responses.push(Scry.Cards.byName(card));
-    });
-
-    return Promise.all(responses);
-}
-
-function getCards(str: string): string[] {
-    // card regex
-    const regex = /\[\[([^\[\]]*)\]\]/g;
-    let m;
-    let cards: string[] = [];
-    while ((m = regex.exec(str)) !== null) {
-        // This is necessary to avoid infinite loops with zero-width matches
-        if (m.index === regex.lastIndex) {
-            regex.lastIndex++;
-        }
-        
-        // The result can be accessed through the `m`-variable.
-        m.forEach((match, groupIndex) => {
-            if (groupIndex == 1)
-            {
-                cards.push(match);
-            }
-        });
-    }        
-    return cards;
-}

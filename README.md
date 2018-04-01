@@ -1,2 +1,2 @@
 # mtgdiscordbot
-Discord bot to fetch mtg cards
+Discord bot to play music
