@@ -15,6 +15,10 @@ client.on('ready', () => {
 let connection: Discord.VoiceConnection;
 let dispatcher: Discord.StreamDispatcher;
 
+client.on('error', error => {
+    console.log(error);
+})
+
 client.on('message', async message => {
     if (message.content.indexOf('akornz ') !== 0) {
         return;
@@ -36,6 +40,7 @@ client.on('message', async message => {
         }
 
         if (dispatcher) {
+            console.log('kiling old dispatcher');
             dispatcher.end();
         }
 
@@ -43,6 +48,7 @@ client.on('message', async message => {
         if (message.member.voiceChannel) {
             connection = await message.member.voiceChannel.join();
             let track = pieces[2];
+            console.log('playing new stream');
             dispatcher = connection.playStream(ytdl(track, {filter: 'audioonly' }));
         } else {
             message.reply('You need to join a voice channel first!');
@@ -58,12 +64,14 @@ client.on('message', async message => {
 
     if (command === 'stop') {
         if (dispatcher) {
+            console.log('stopping');
             dispatcher.end();
         }
     }
 
     if (command === 'resume') {
         if (dispatcher) {
+            console.log('resume');
             dispatcher.resume();
         }
     }
